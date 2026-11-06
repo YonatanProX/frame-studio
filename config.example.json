@@ -1,0 +1,33 @@
+{
+  "_comment": "install.cmd creates config.json (gitignored) from this file; you can also copy it by hand and edit it. Every key is optional; delete what you do not need. Relative paths are resolved against the Frame Studio folder, '~' = your home folder. Changes are picked up automatically (restart the server after changing ffmpeg/ffprobe).",
+
+  "_chrome": "Google Chrome / Chromium executable. null = auto-detect (Windows: Program Files / LocalAppData, macOS: /Applications, Linux: google-chrome / chromium on PATH). Env FRAME_STUDIO_CHROME overrides.",
+  "chrome": null,
+
+  "_ffmpeg": "ffmpeg / ffprobe executables. Bare names are looked up on PATH; when that fails (or a full path no longer exists) the usual install folders are searched too (winget, Chocolatey, Scoop, C:/ffmpeg/bin, Homebrew). If you set only an absolute ffmpeg path, ffprobe next to it is used. install.cmd writes full paths here when PATH cannot find them.",
+  "ffmpeg": "ffmpeg",
+  "ffprobe": "ffprobe",
+
+  "_asr": "Optional local transcription (word timestamps for captions). python = a Python that has faster-whisper installed (on Windows tools/install-transcription.cmd sets it up in ~/.frame-studio/asr; elsewhere pip install faster-whisper). null = transcription disabled. Windows example: C:/Users/you/whisper-venv/Scripts/python.exe . macOS/Linux example: ~/whisper-venv/bin/python",
+  "asr": {
+    "python": null,
+    "model": "small",
+    "language": "he"
+  },
+
+  "_library": "Extra folders with your own music / voice-over files, e.g. [\"~/Music/Frame Studio\", \"D:/Voice-overs\"]. They show up in the Audio tab marked 'mine'. Sound effects go in library/sounds (see library/sounds/README.md).",
+  "library": {
+    "music": []
+  },
+
+  "_chordix": "Optional: Chordix video-workshop import. workshop = the workshop folder (lets you import a project by its folder name). sfx = extra folders searched for the workshop's sound-effect files.",
+  "chordix": {
+    "workshop": null,
+    "sfx": []
+  },
+
+  "_render": "angle = ANGLE backend for headless Chrome renders. null = per OS (d3d11 on Windows, metal on macOS, default elsewhere).",
+  "render": {
+    "angle": null
+  }
+}

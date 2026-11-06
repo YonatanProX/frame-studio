@@ -1,0 +1,3 @@
+#!/bin/sh
+# Frame Studio CLI for Git Bash / POSIX shells (cutx.cmd is for cmd/PowerShell).
+exec node "$(dirname "$0")/cli/cutx.mjs" "$@"

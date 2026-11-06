@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Frame Studio — רינדור</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  /* The canvas keeps its full pixel size (width × height of the project); CSS only shrinks how it is shown. */
+  #c { display: block; max-width: 100vw; max-height: 100vh; }
+  #status {
+    position: fixed; inset-inline-start: 12px; bottom: 12px; padding: 6px 10px; border-radius: 8px;
+    font: 600 14px "Segoe UI", Arial, sans-serif; color: #e8f6fb; background: rgba(7, 24, 34, .78);
+    direction: rtl; unicode-bidi: plaintext; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<div id="status">מתחיל…</div>
+<script type="module">
+  import { bootRenderPage } from './render-page.js';
+  bootRenderPage();
+</script>
+</body>
+</html>

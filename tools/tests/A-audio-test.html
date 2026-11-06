@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="he">
+<head><meta charset="utf-8"><title>Agent A — audio engine test</title></head>
+<body style="background:#000;color:#ccc;font:14px monospace">
+<pre id="log">running…</pre>
+<script type="module">
+import { AudioEngine } from '/render/audio-engine.js';
+
+const logEl = document.getElementById('log');
+const lines = [];
+const say = (s) => { lines.push(s); logEl.textContent = lines.join('\n'); };
+const post = (name, body, type = 'application/octet-stream') => fetch(`/result/${name}`, { method: 'POST', headers: { 'Content-Type': type }, body });
+
+function track(id, role, kind = 'audio') { return { id, kind, name: id, role, hidden: false, muted: false, locked: false, solo: false, volume: 1 }; }
+function clip(id, trackId, mediaId, props) {
+  return { id, trackId, type: 'audio', name: id, start: 0, duration: 1, mediaId, in: 0, speed: 1, reverse: false, disabled: false,
+    keyframes: {}, volume: 1, fadeIn: 0, fadeOut: 0, pan: 0, muteAudio: false,
+    audioFx: { voiceEnhance: false, denoise: false, eqPreset: 'none', duckUnderVoice: false, duckDb: -10 }, ...props };
+}
+function media(id, duration) {
+  return { id, kind: 'audio', name: id, path: `C:/x/${id}.wav`, duration, hasAudio: true, hasVideo: false, channels: 2, sampleRate: 48000,
+    status: 'ready', audio: `cache/audio/${id}.wav` };
+}
+
+function scenario(variant) {
+  const B = variant === 'B';
+  return {
+    version: 1, id: 'atest', name: 'בדיקת שמע', rev: 1,
+    settings: { width: 1080, height: 1920, fps: 30, background: '#000000', sampleRate: 48000, safeArea: 'none', masterGainDb: 0, targetLufs: -14 },
+    media: { music: media('music', 10), voice: media('voice', 8), sfx: media('sfx', 2) },
+    tracks: [track('tv', 'voice'), track('tm', 'music'), track('ts', 'sfx')],
+    clips: {
+      cm: clip('cm', 'tm', 'music', { start: 0, duration: 10, fadeIn: 1, fadeOut: 1,
+        audioFx: { voiceEnhance: false, denoise: false, eqPreset: 'none', duckUnderVoice: true, duckDb: -10 } }),
+      cv: clip('cv', 'tv', 'voice', { start: 1, duration: 6, reverse: B,
+        audioFx: { voiceEnhance: B, denoise: false, eqPreset: 'none', duckUnderVoice: false, duckDb: -10 } }),
+      cs: clip('cs', 'ts', 'sfx', { start: 8, duration: 1.5, speed: B ? 2 : 1,
+        keyframes: { volume: [{ t: 0, v: 0.25, ease: 'linear' }, { t: 1, v: 1, ease: 'linear' }] } }),
+    },
+    markers: [], transcript: { words: [] }, meta: {},
+  };
+}
+
+const summary = { ok: true };
+try {
+  for (const variant of ['A', 'B']) {
+    const eng = new AudioEngine({ projectId: 'atest', apiBase: '' });
+    eng.setProject(scenario(variant));
+    const t0 = performance.now();
+    const r = await eng.renderOffline({ from: 0, to: 10, sampleRate: 48000, stems: true });
+    summary[`render${variant}ms`] = Math.round(performance.now() - t0);
+    summary[`warnings${variant}`] = r.warnings;
+    summary.latency = eng._lat;
+    say(`${variant}: rendered ${r.mix.length} frames in ${summary[`render${variant}ms`]} ms`);
+    await post(`${variant}-mix.wav`, AudioEngine.encodeWav(r.mix, { float: true }), 'audio/wav');
+    await post(`${variant}-voice.wav`, AudioEngine.encodeWav(r.voice, { float: true }), 'audio/wav');
+    await post(`${variant}-background.wav`, AudioEngine.encodeWav(r.background, { float: true }), 'audio/wav');
+    // partial window render (export of a sub-range): 2.5 → 4.5 must equal the same span of the full render
+    if (variant === 'A') {
+      const part = await eng.renderOffline({ from: 2.5, to: 4.5, sampleRate: 48000 });
+      await post('A-part.wav', AudioEngine.encodeWav(part.mix, { float: true }), 'audio/wav');
+    }
+    eng.dispose();
+  }
+  // preview path: play, let the clock run, read meters, pause
+  const eng = new AudioEngine({ projectId: 'atest', apiBase: '' });
+  eng.setProject(scenario('A'));
+  await eng.load();
+  eng.play(2.5);
+  const wall0 = performance.now();
+  let maxL = -200, lufs = null;
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 40));
+    const m = eng.getMeters();
+    maxL = Math.max(maxL, m.l);
+    lufs = m.lufsShort;
+  }
+  const wall = (performance.now() - wall0) / 1000;
+  const ct = eng.currentTime;
+  summary.preview = { ctxState: eng._ctx?.state, playing: eng.playing, currentTime: ct, wallElapsed: wall, maxPeakDb: maxL, lufsShort: lufs };
+  eng.seek(6.5);
+  await new Promise((r) => setTimeout(r, 200));
+  summary.preview.afterSeek = eng.currentTime;
+  eng.pause();
+  const paused = eng.currentTime;
+  await new Promise((r) => setTimeout(r, 150));
+  summary.preview.pausedStable = Math.abs(eng.currentTime - paused) < 1e-9;
+  eng.dispose();
+} catch (e) {
+  summary.ok = false;
+  summary.error = String(e && e.stack || e);
+  say('ERROR ' + summary.error);
+}
+await post('summary.json', JSON.stringify(summary), 'application/json');
+await post('done', 'x');
+say('done');
+</script>
+</body>
+</html>

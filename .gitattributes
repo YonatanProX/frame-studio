@@ -1,0 +1,11 @@
+* text=auto eol=lf
+# Windows launchers need CRLF (cmd.exe misreads labels in LF batch files); tools/make-release.mjs writes them the same way
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.ttf binary
+*.woff2 binary
