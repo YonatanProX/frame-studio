@@ -1,0 +1,63 @@
+# Frame Studio — what never goes into the repository.
+# Check what would be published with:  node tools/list-publishable.mjs
+
+# ── personal: projects, media, exports, local settings ───────────────────────
+/projects/*
+!/projects/.gitkeep
+/config.json
+/config.json.bak
+/library/sources.json
+exports/
+snapshots/
+
+# ── licensed audio: Sonniss / Mixkit / your own sounds may NOT be redistributed ─
+# (see library/sounds/README.md — every user downloads them personally)
+/library/sounds/*
+!/library/sounds/README.md
+/library/sounds/index.json
+.peaks/
+# generated Starter Pack (tools/make-starter-sounds.mjs) is under /library/sounds/* too
+# sound folders the user added + their index cache (when the data folder is the repo itself)
+/sound-folders.json
+/Sounds/
+/.cache/
+
+# ── logs, caches, temp files ──────────────────────────────────────────────────
+server.log
+server.old.log
+*.log
+*.tmp
+*.temp
+*.bak
+__pycache__/
+*.py[cod]
+node_modules/
+
+# ── browser profiles (headless render workers, screenshots, app window) ──────
+.chrome-render*/
+.chrome-profile*/
+chrome-profile*/
+*chrome-prof*/
+fs-shot-*/
+
+# ── release builds (node tools/make-release.mjs) ─────────────────────────────
+/dist/
+
+# ── installed copy: portable Node.js / ffmpeg (installer), install marker, caches ─
+/runtime/
+/install-info.json
+
+# ── test outputs and generated test media ────────────────────────────────────
+/tools/tests/*-out/
+/tools/tests/*-assets/
+/tools/tests/*-tmp/
+/tools/tests/U-media/
+
+# ── OS / editor clutter ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+.vscode/
+.idea/
+.claude/settings.local.json

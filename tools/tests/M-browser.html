@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="he">
+<head><meta charset="utf-8"><title>M browser test</title></head>
+<body>
+<pre id="out">running</pre>
+<script type="module">
+const out = document.getElementById('out');
+const lines = [];
+const check = (name, cond) => { lines.push(`${cond ? 'PASS' : 'FAIL'} ${name}`); };
+try {
+  const model = await import('../../shared/model.js');
+  const anim = await import('../../shared/anim.js');
+  const ops = await import('../../shared/ops.js');
+  const catalog = await import('../../shared/catalog.js');
+  const cat = await catalog.getCatalog();
+  check('catalog loaded in browser', cat.loaded === true && cat.transitions.length > 30 && cat.errors.length === 0);
+  let p = model.newProject({ id: 'browser-test', name: 'דפדפן' });
+  p.media.m1 = { id: 'm1', kind: 'video', name: 'v', path: 'C:/v.mp4', duration: 6, width: 1080, height: 1920, hasVideo: true, hasAudio: true, status: 'ready' };
+  p.transcript.words = [{ w: 'שַׁקְשׁוּקָה!', s: 0.1, e: 0.5 }, { w: 'בעשר', s: 0.8, e: 1 }, { w: 'דקות', s: 1.05, e: 1.3 }, { w: 'בלבד,', s: 1.35, e: 1.7 }];
+  const r = ops.applyOps(p, [
+    { op: 'addClip', type: 'video', mediaId: 'm1', start: 0, id: 'v', keyframes: { 'transform.scale': [{ t: 0, v: 1 }, { t: 4, v: 2, ease: 'spring' }] } },
+    { op: 'splitClip', id: 'v', at: 2, newId: 'v2' },
+    { op: 'addCaptions', style: 'popWords', hot: ['רגע'] },
+    { op: 'addClip', type: 'text', content: 'שלום', at: 'word:לכם', animIn: 'pop' },
+    { op: 'addClip', type: 'sticker', value: 'emoji-fire', at: 1 },
+    { op: 'addClip', type: 'video', path: 'C:/needs/server.mp4' },
+    { op: 'sfx', sound: 'whoosh', at: 1 },
+  ], { catalog: cat });
+  check('ops ok in browser', r.results.slice(0, 5).every((x) => x.ok));
+  check('path op fails locally with Hebrew message', !r.results[5].ok && /עוד לא יובא/.test(r.results[5].error));
+  check('sfx op fails locally with Hebrew message', !r.results[6].ok && /בלי השרת/.test(r.results[6].error));
+  const P = r.project;
+  const T = 3;
+  check('split keeps spring curve', Math.abs(anim.evalKeyframed(P.clips.v2, 'transform.scale', T - 2) - anim.evalKeyframed({ keyframes: { 'transform.scale': [{ t: 0, v: 1 }, { t: 4, v: 2, ease: 'spring' }] } }, 'transform.scale', T)) < 1e-9);
+  const caps = Object.values(P.clips).filter((c) => c.type === 'caption');
+  check('captions chunked by sentence/comma', caps.map((c) => c.text.content).join('|') === 'שַׁקְשׁוּקָה!|בעשר דקות בלבד,');
+  check('hot word ignoring niqqud', caps[0].caption.words[0].hot === true);
+  check('sticker from catalog id', Object.values(P.clips).some((c) => c.type === 'sticker' && c.sticker.value === '🔥'));
+  const st = anim.animState(Object.values(P.clips).find((c) => c.type === 'text'), 0.05, 1080, 1920);
+  check('animState finite', Object.values(st).every(Number.isFinite));
+  check('validateProject clean', model.validateProject(P).length === 0);
+  check('resolveTime word', ops.resolveTime(P, 'word:סרטון') === 1.35);
+} catch (e) {
+  lines.push('FAIL exception ' + (e && e.stack ? e.stack : e));
+}
+out.textContent = lines.join('\n') + '\nDONE';
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head><meta charset="utf-8"><title>Agent A — in-app runJobInPage test</title></head>
+<body>
+<progress id="bar" max="1" value="0" style="width:300px"></progress> <span id="txt"></span>
+<script type="module">
+// Simulates the editor's export dialog: no canvas passed (OffscreenCanvas path), progress bar driven by onProgress.
+import { runJobInPage } from '/render/render-page.js';
+const job = new URLSearchParams(location.search).get('job');
+const seen = [];
+try {
+  const final = await runJobInPage(job, {
+    onProgress: (p) => {
+      seen.push({ phase: p.phase, overall: +p.overall.toFixed(3), msg: p.message || '' });
+      document.getElementById('bar').value = p.overall;
+      document.getElementById('txt').textContent = p.message || '';
+    },
+  });
+  seen.push({ final: final.status, outputs: final.outputs.length });
+} catch (e) {
+  seen.push({ error: String(e) });
+}
+await fetch('/result/inapp-progress.json', { method: 'POST', body: JSON.stringify(seen) });
+</script>
+</body>
+</html>

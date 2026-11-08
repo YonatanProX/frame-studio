@@ -1,0 +1,6 @@
+#!/bin/sh
+# Frame Studio CLI for Git Bash / POSIX shells (cutx.cmd is for cmd/PowerShell).
+# Uses the Windows installer's portable Node.js (runtime/node/node.exe) when present.
+d="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$d/runtime/node/node.exe" ]; then exec "$d/runtime/node/node.exe" "$d/cli/cutx.mjs" "$@"; fi
+exec node "$d/cli/cutx.mjs" "$@"

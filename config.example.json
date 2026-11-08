@@ -1,0 +1,30 @@
+{
+  "_comment": "The installer creates config.json (gitignored) from this file; you can also copy it by hand and edit it. Every key is optional; delete what you do not need. Relative paths are resolved against the Frame Studio folder, '~' = your home folder. Changes are picked up automatically (restart the server after changing ffmpeg/ffprobe).",
+
+  "_dataDir": "Folder for your projects (projects/) and sounds (Sounds/). null = this folder when it is a git clone or already has projects/, else Documents/Frame Studio. The Windows installer sets it to <Documents>/Frame Studio. Env FRAME_STUDIO_DATA overrides.",
+  "dataDir": null,
+
+  "_chrome": "Browser for the editor window and for rendering (snapshots, export): Google Chrome, Chromium or Microsoft Edge. null = auto-detect in that order (Windows: Program Files / LocalAppData, macOS: /Applications, Linux: on PATH). Env FRAME_STUDIO_CHROME overrides.",
+  "chrome": null,
+
+  "_ffmpeg": "ffmpeg / ffprobe executables. Bare names are looked up on PATH; when that fails (or a full path no longer exists) the usual install folders are searched too (winget, Chocolatey, Scoop, C:/ffmpeg/bin, Homebrew). If you set only an absolute ffmpeg path, ffprobe next to it is used. The installer writes full paths here when PATH cannot find them (runtime/ffmpeg/bin/... when it downloaded the portable copy).",
+  "ffmpeg": "ffmpeg",
+  "ffprobe": "ffprobe",
+
+  "_asr": "Optional local transcription (word timestamps for captions). python = a Python that has faster-whisper installed (on Windows tools/install-transcription.cmd sets it up in %LOCALAPPDATA%/Frame Studio/asr; elsewhere pip install faster-whisper). null = transcription disabled. Windows example: C:/Users/you/whisper-venv/Scripts/python.exe . macOS/Linux example: ~/whisper-venv/bin/python",
+  "asr": {
+    "python": null,
+    "model": "small",
+    "language": "he"
+  },
+
+  "_library": "Extra folders with your own music / voice-over files, e.g. [\"~/Music/Frame Studio\", \"D:/Voice-overs\"]. They show up in the Audio tab marked 'mine'. Sound effects go in library/sounds (see library/sounds/README.md).",
+  "library": {
+    "music": []
+  },
+
+  "_render": "angle = ANGLE backend for headless Chrome renders. null = per OS (d3d11 on Windows, metal on macOS, default elsewhere).",
+  "render": {
+    "angle": null
+  }
+}

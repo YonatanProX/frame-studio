@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>compressor start-up probe</title></head>
+<body><pre id="out">…</pre>
+<script type="module">
+// Measures the gain of a fresh DynamicsCompressorNode on a steady -20 dBFS sine (well below threshold).
+async function probe(opts, silenceBefore) {
+  const sr = 48000, len = sr * 1.5;
+  const ctx = new OfflineAudioContext({ numberOfChannels: 1, length: len, sampleRate: sr });
+  const osc = new OscillatorNode(ctx, { frequency: 1000 });
+  const g = new GainNode(ctx, { gain: 0.1 });
+  const comp = new DynamicsCompressorNode(ctx, opts);
+  if (opts.warm) { comp.release.setValueAtTime(0, 0); comp.release.setValueAtTime(opts.release, opts.warm); }
+  osc.connect(g).connect(comp).connect(ctx.destination);
+  osc.start(silenceBefore);
+  const d = (await ctx.startRendering()).getChannelData(0);
+  const rows = [];
+  for (const ms of [5, 10, 20, 50, 100, 150, 200, 300, 400, 600, 900]) {
+    const s0 = Math.round((silenceBefore + ms / 1000) * sr);
+    let pk = 0; for (let i = s0; i < s0 + 96; i++) pk = Math.max(pk, Math.abs(d[i]));
+    rows.push(`${ms}ms:${(20 * Math.log10(pk / 0.1)).toFixed(2)}dB`);
+  }
+  return rows.join(' ');
+}
+const out = [];
+out.push('glue fresh:        ' + await probe({ threshold: -6, knee: 6, ratio: 1.5, attack: 0.01, release: 0.25 }, 0));
+out.push('glue 0.5s silence: ' + await probe({ threshold: -6, knee: 6, ratio: 1.5, attack: 0.01, release: 0.25 }, 0.5));
+out.push('voice fresh:       ' + await probe({ threshold: -24, knee: 6, ratio: 3, attack: 0.003, release: 0.25 }, 0));
+out.push('voice 0.5s silence:' + await probe({ threshold: -24, knee: 6, ratio: 3, attack: 0.003, release: 0.25 }, 0.5));
+out.push('glue warm 0.05/0.08:' + await probe({ threshold: -6, knee: 6, ratio: 1.5, attack: 0.01, release: 0.25, warm: 0.05 }, 0.08));
+out.push('voice warm 0.05/0.08:' + await probe({ threshold: -24, knee: 6, ratio: 3, attack: 0.003, release: 0.25, warm: 0.05 }, 0.08));
+out.push('glue warm 0.02/0.03:' + await probe({ threshold: -6, knee: 6, ratio: 1.5, attack: 0.01, release: 0.25, warm: 0.02 }, 0.03));
+document.getElementById('out').textContent = out.join('\n');
+fetch('/result/probe.txt', { method: 'POST', body: out.join('\n') });
+</script></body></html>

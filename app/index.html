@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frame Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='3' width='22' height='18' rx='4' fill='%2313b6e4'/%3E%3Cpath d='M10 8.5v7l5.6-3.5z' fill='%230b0e13'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/app/styles.css">
+</head>
+<body>
+  <div id="app" class="app">
+    <header id="topbar" class="topbar">
+      <div class="brand" id="brand" role="button" tabindex="0" title="הפרויקטים שלי (Ctrl+O)" aria-label="הפרויקטים שלי">
+        <span data-icon="logo" data-icon-size="24"></span>
+        <span class="brand-name">Frame <span>Studio</span></span>
+      </div>
+      <div class="tb-sep"></div>
+      <input id="projName" class="proj-name" type="text" spellcheck="false" dir="auto" title="שם הפרויקט — לחיצה לעריכה" aria-label="שם הפרויקט" value="">
+      <div class="tb-sep"></div>
+      <button class="btn-icon" id="btnUndo" data-icon="undo" title="ביטול (Ctrl+Z)" aria-label="ביטול"></button>
+      <button class="btn-icon" id="btnRedo" data-icon="redo" title="ביצוע מחדש (Ctrl+Shift+Z)" aria-label="ביצוע מחדש"></button>
+      <div class="save-state" id="saveState"><span class="dot"></span><span class="txt">נשמר</span></div>
+      <div class="tb-spacer"></div>
+      <div class="claude-ind off" id="claudeInd" title="Claude — לחיצה: איך עובדים איתו">
+        <span class="cdot"></span>
+        <span class="txt">מתחבר…</span>
+      </div>
+      <button class="btn-icon" id="btnKeys" data-icon="keyboard" title="קיצורי מקלדת (?)" aria-label="קיצורי מקלדת"></button>
+      <button class="btn btn-primary btn-export" id="btnExport" title="ייצוא (Ctrl+E)"><span data-icon="export" data-icon-size="15"></span>ייצוא</button>
+    </header>
+
+    <div class="workspace" id="workspace">
+      <aside id="library" class="panel panel-library" aria-label="ספרייה"></aside>
+      <div class="splitter splitter-v" data-split="lib" title="גרירה לשינוי רוחב"></div>
+      <main id="viewer" class="panel panel-viewer" aria-label="נגן"></main>
+      <div class="splitter splitter-v" data-split="insp" title="גרירה לשינוי רוחב"></div>
+      <aside id="inspector" class="panel panel-inspector" aria-label="מאפיינים"></aside>
+    </div>
+    <div class="splitter splitter-h" data-split="timeline" title="גרירה לשינוי גובה"></div>
+    <section id="timeline" class="panel panel-timeline" dir="ltr" aria-label="ציר זמן"></section>
+  </div>
+  <div id="overlays"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script type="module" src="/app/main.js"></script>
+</body>
+</html>

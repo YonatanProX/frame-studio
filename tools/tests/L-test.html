@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>L — timeline + library test</title>
+<link rel="stylesheet" href="/app/styles.css">
+<style>
+  body { margin: 0; }
+  .grid { position: fixed; inset: 0; display: grid; grid-template-rows: 44px 1fr 5px var(--tlh, 400px); grid-template-columns: 330px 1fr 340px; gap: 0; padding: 0 6px 6px; background: #08090b; }
+  .top { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; color: #e7e9ec; font: 600 14px "Segoe UI", Heebo; padding: 0 8px; }
+  .top b { color: #3b82f6; }
+  #inspector { grid-row: 2; grid-column: 1; }
+  #viewer { grid-row: 2; grid-column: 2; display: flex; align-items: center; justify-content: center; color: #4b515a; margin: 0 6px; }
+  #library { grid-row: 2; grid-column: 3; }
+  #timeline { grid-row: 4; grid-column: 1 / -1; }
+  #result { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="top"><b>Frame Studio</b><span>בדיקת ציר זמן + ספרייה (מוק)</span></div>
+  <aside id="library" class="panel panel-library"></aside>
+  <main id="viewer" class="panel"><div style="width:200px;height:356px;border:1px dashed #2a3038;border-radius:10px;display:flex;align-items:center;justify-content:center">נגן (מחוץ לבדיקה)</div></main>
+  <aside id="inspector" class="panel" style="display:flex;align-items:center;justify-content:center;color:#4b515a">מאפיינים</aside>
+  <div></div>
+  <section id="timeline" class="panel panel-timeline" dir="ltr"></section>
+</div>
+<pre id="result">pending</pre>
+<script type="module">
+const qs = new URLSearchParams(location.search);
+const out = document.getElementById('result');
+const log = [];
+const note = (m) => { log.push(m); };
+window.addEventListener('error', (e) => note('ERROR ' + e.message));
+window.addEventListener('unhandledrejection', (e) => note('REJECT ' + (e.reason && e.reason.message || e.reason)));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+try {
+  if (qs.get('tlh')) document.querySelector('.grid').style.setProperty('--tlh', qs.get('tlh') + 'px');
+  try { localStorage.clear(); localStorage.setItem('frameStudio.library', JSON.stringify({ tab: qs.get('tab') || 'sfx' })); } catch {}
+  const API = await import('/app/api.js');
+  await fetch('/api/reset' + (qs.get('big') ? `?big=${qs.get('big')}` : ''), { method: 'POST' });
+  await API.openProject('fx-demo');
+  const tl = await import('/app/timeline.js');
+  tl.mount(document.getElementById('timeline'));
+  const lib = await import('/app/library-panel.js');
+  lib.mount(document.getElementById('library'));
+  if (qs.get('sel')) API.state.set({ selection: new Set(qs.get('sel').split(',')) });
+  if (qs.get('ph')) API.state.set({ playhead: +qs.get('ph') });
+  if (qs.get('q')) {
+    await sleep(600);
+    const inp = document.querySelector('.lb-search input');
+    if (inp) { inp.value = qs.get('q'); inp.dispatchEvent(new Event('input', { bubbles: true })); }
+  }
+  await sleep(+(qs.get('wait') || 2500));
+  if (qs.get('tree')) { const tb = document.querySelector('.lb-treebtn'); if (tb) { tb.click(); await sleep(150); const n = document.querySelectorAll('.lb-tnode'); if (n[1]) { n[1].querySelector('.tw').click(); await sleep(100); } } }
+  const S = tl._debug().S;
+  const th=[...S.cache.thumbs.values()]; note(`thumbs ok=${th.filter(x=>x.state==='ok').length} err=${th.filter(x=>x.state==='error').length} loading=${th.filter(x=>x.state==='loading').length} queued=${th.filter(x=>x.state==='queued').length} peaks=${[...S.cache.peaks.values()].map(x=>x.state).join(',')} pid=${S.cache.projectId}`);
+  note(`zoom=${S.zoom.toFixed(1)} vw=${S.vw} clips=${S.clipEls.size} lanes=${S.laneEls.size} heads=${S.headEls.size} tr=${(S.trEls || []).length} mk=${(S.mkEls || []).length}`);
+
+  if (qs.get('test') === 'interact') {
+    const view = document.querySelector('.tl-view');
+    const clipEl = (id) => S.clipEls.get(id);
+    const center = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, r }; };
+    const pe = (type, x, y, opts = {}) => new PointerEvent(type, { clientX: x, clientY: y, button: 0, buttons: type === 'pointerup' ? 0 : 1, bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', ...opts });
+    const drag = async (el, x0, y0, x1, y1, opts = {}) => {
+      el.dispatchEvent(pe('pointerdown', x0, y0, opts));
+      const steps = 8;
+      for (let i = 1; i <= steps; i++) { window.dispatchEvent(pe('pointermove', x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps, opts)); await sleep(16); }
+      window.dispatchEvent(pe('pointerup', x1, y1, opts));
+      await sleep(250);
+    };
+    const opsCount = async () => (await (await fetch('/api/ops-log')).json()).length;
+    const lastOps = async () => { const l = await (await fetch('/api/ops-log')).json(); return l[l.length - 1]; };
+    const z = S.zoom;
+
+    // 1. move sfx clip c_s2 by +1 s
+    let c = center(clipEl('c_s2'));
+    await drag(clipEl('c_s2'), c.x, c.y, c.x + z * 1.0, c.y);
+    await sleep(300);
+    let L = await lastOps();
+    note(`MOVE: ${L && L.summary} :: ${JSON.stringify(L && L.ops)} :: c_s2.start=${API.state.project.clips.c_s2.start}`);
+
+    // 2. trim right edge of the text clip c_t2 by -0.5 s (non-ripple)
+    const t2 = clipEl('c_t2');
+    const r2 = t2.getBoundingClientRect();
+    const trimR = t2.querySelector('.tl-trim.r');
+    await drag(trimR, r2.right - 3, r2.top + r2.height / 2, r2.right - 3 - z * 0.5, r2.top + r2.height / 2);
+    L = await lastOps();
+    note(`TRIM: ${L && L.summary} :: ${JSON.stringify(L && L.ops)} :: c_t2.dur=${API.state.project.clips.c_t2.duration}`);
+
+    // 3. magnetic main track: drag c_v2 after c_v3
+    const v2 = clipEl('c_v2'), v3 = clipEl('c_v3');
+    c = center(v2);
+    const r3 = v3.getBoundingClientRect();
+    const vr0 = view.getBoundingClientRect();
+    await drag(v2, c.x, c.y, vr0.left + 9.0 * S.zoom - S.sx, c.y);
+    L = await lastOps();
+    const P = API.state.project;
+    note(`MAGNETIC: ${L && L.summary} :: ${JSON.stringify(L && L.ops)} :: v1=${P.clips.c_v1.start} v3=${P.clips.c_v3.start} v2=${P.clips.c_v2.start} v4=${P.clips.c_v4.start}`);
+
+    // 4. drag an overlay sticker onto an occupied spot → new track
+    const st = clipEl('c_st');
+    c = center(st);
+    const tgt = clipEl('c_t1');
+    const rt = tgt.getBoundingClientRect();
+    const n0 = API.state.project.tracks.length;
+    await drag(st, c.x, c.y, c.x - (API.state.project.clips.c_st.start - 0.2) * z, rt.top + rt.height / 2);
+    L = await lastOps();
+    note(`NEWTRACK: ${L && L.summary} :: ops=${(L && L.ops || []).map((o) => o.op).join(',')} :: tracks ${n0}→${API.state.project.tracks.length}`);
+
+    // 5. marquee selection on the sfx lane
+    const sfxLane = S.laneEls.get('t_sfx').getBoundingClientRect();
+    const vr = view.getBoundingClientRect();
+    view.dispatchEvent(pe('pointerdown', vr.left + 2, sfxLane.top + 2));
+    for (let i = 1; i <= 6; i++) { window.dispatchEvent(pe('pointermove', vr.left + 2 + i * 120, sfxLane.bottom - 2)); await sleep(16); }
+    window.dispatchEvent(pe('pointerup', vr.left + 2 + 720, sfxLane.bottom - 2));
+    await sleep(100);
+    note(`MARQUEE: selection=${[...API.state.selection].join(',')}`);
+
+    // 6. split with the keyboard at 2 s on the selected music clip
+    API.state.set({ selection: new Set(['c_mus']), playhead: 2 });
+    await sleep(50);
+    const root = document.querySelector('.fs-tl');
+    root.focus();
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 's', code: 'KeyS', bubbles: true, cancelable: true }));
+    await sleep(300);
+    L = await lastOps();
+    note(`SPLIT: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+
+    // 7. library payload via insertPayload (sound at playhead) + drop of a transition onto a junction
+    API.state.set({ selection: new Set(), playhead: 6.2 });
+    await tl.insertPayload({ kind: 'sound', id: 'e4c3fc91bb89', abs: 'C:/x.wav', name: 'Air zoom vacuum', duration: 0.62, role: 'sfx', suggest: { gainDb: -14, len: 0.6 } });
+    await sleep(300);
+    L = await lastOps();
+    note(`SFX: ${L && L.summary} :: ${JSON.stringify(L && L.ops)} :: results=${JSON.stringify(L && L.results)}`);
+
+    // 8. real HTML5 drop of a transition payload onto the v1→next junction badge
+    const badge = document.querySelector('.tl-tr');
+    if (badge) {
+      const rb = badge.getBoundingClientRect();
+      const dt = new DataTransfer();
+      dt.setData('application/x-frame-studio', JSON.stringify({ kind: 'transition', id: 'circleOpen', name: 'עיגול נפתח' }));
+      badge.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, clientX: rb.left + 5, clientY: rb.top + 5, dataTransfer: dt }));
+      badge.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, clientX: rb.left + 5, clientY: rb.top + 5, dataTransfer: dt }));
+      await sleep(300);
+      L = await lastOps();
+      note(`DROP-TRANSITION: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+    } else note('DROP-TRANSITION: no badge');
+
+    // 9. drop a media payload into the empty zone below the last track → new track
+    const vr2 = view.getBoundingClientRect();
+    const dt2 = new DataTransfer();
+    dt2.setData('application/x-frame-studio', JSON.stringify({ kind: 'media', mediaId: 'm_img', mediaKind: 'image', name: 'רקע-מותג.png' }));
+    view.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, clientX: vr2.left + z * 1, clientY: vr2.top + 6, dataTransfer: dt2 }));
+    view.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, clientX: vr2.left + z * 1, clientY: vr2.top + 6, dataTransfer: dt2 }));
+    await sleep(300);
+    L = await lastOps();
+    note(`DROP-MEDIA-TOP: ${L && L.summary} :: ops=${(L && L.ops || []).map((o) => o.op + (o.role ? ':' + o.role : '')).join(',')}`);
+
+    // 10. Ctrl+wheel zoom around the cursor
+    const z0 = S.zoom;
+    view.dispatchEvent(new WheelEvent('wheel', { deltaY: -300, ctrlKey: true, clientX: vr2.left + 300, clientY: vr2.top + 50, bubbles: true, cancelable: true }));
+    await sleep(100);
+    note(`ZOOM: ${z0.toFixed(1)} → ${S.zoom.toFixed(1)} (state.zoom=${API.state.zoom.toFixed(1)})`);
+    // 11. track header: mute the music track
+    const muteBtn = S.headEls.get('t_music').querySelector('.tl-tb');
+    muteBtn.click();
+    await sleep(250);
+    L = await lastOps();
+    note(`HEADER-BTN: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+
+    // 12. fade-in handle on the voice clip (+0.8 s)
+    S.sx = 0; tl._debug().flushNow(); await sleep(50);
+    API.state.set({ selection: new Set(['c_vo']) }); await sleep(80);
+    const vo = clipEl('c_vo');
+    const fin = vo.querySelector('.tl-fadeh[data-fade="in"]');
+    const rf = fin.getBoundingClientRect();
+    await drag(fin, rf.left + 5, rf.top + 5, rf.left + 5 + S.zoom * 0.8, rf.top + 5);
+    L = await lastOps();
+    note(`FADE: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+
+    // 13. volume rubber band on the sfx clip c_s1 (drag down)
+    const s1 = clipEl('c_s1');
+    const vl = s1.querySelector('.tl-vol');
+    const rv = vl.getBoundingClientRect();
+    await drag(vl, rv.left + 20, rv.top + 4, rv.left + 20, rv.top + 14);
+    L = await lastOps();
+    note(`VOLUME: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+
+    // 14. keyframe diamond drag on c_v2
+    API.state.set({ selection: new Set(['c_v2']) }); await sleep(120);
+    const kfs = clipEl('c_v2').querySelectorAll('.tl-kf');
+    if (kfs.length > 1) {
+      const rk = kfs[1].getBoundingClientRect();
+      await drag(kfs[1], rk.left + 6, rk.top + 6, rk.left + 6 + S.zoom * 0.5, rk.top + 6);
+      L = await lastOps();
+      note(`KEYFRAME: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+    } else note('KEYFRAME: diamonds=' + kfs.length);
+
+    // 15. blade tool click on the voice clip at 3 s
+    API.state.set({ tool: 'blade' }); await sleep(60);
+    const rvo = clipEl('c_vo').getBoundingClientRect();
+    const bx = view.getBoundingClientRect().left + 3 * S.zoom - S.sx;
+    clipEl('c_vo').dispatchEvent(pe('pointerdown', bx, rvo.top + 10));
+    window.dispatchEvent(pe('pointerup', bx, rvo.top + 10));
+    await sleep(250);
+    API.state.set({ tool: 'select' });
+    L = await lastOps();
+    note(`BLADE: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+
+    // 16. reorder: drag the music track header grip above the voice track
+    const grip = S.headEls.get('t_music').querySelector('.tl-th-grip');
+    const rg = grip.getBoundingClientRect();
+    const rvoice = S.headEls.get('t_voice').getBoundingClientRect();
+    await drag(grip, rg.left + 5, rg.top + 10, rg.left + 5, rvoice.top + 4);
+    L = await lastOps();
+    note(`REORDER: ${L && L.summary} :: ${JSON.stringify(L && L.ops)}`);
+
+    // 17. Explorer file drop on the timeline (upload → addClip)
+    const file = new File([new Uint8Array(2048)], 'צילום-חדש.mp4', { type: 'video/mp4' });
+    const dt3 = new DataTransfer(); dt3.items.add(file);
+    const vr3 = view.getBoundingClientRect();
+    view.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, clientX: vr3.left + 200, clientY: vr3.top + 10, dataTransfer: dt3 }));
+    await sleep(1200);
+    L = await lastOps();
+    note(`FILE-DROP: ${L && L.summary} :: ops=${(L && L.ops || []).map((o) => o.op + (o.mediaId ? ':' + o.mediaId : '')).join(',')}`);
+    note(`OPS-TOTAL: ${await opsCount()}`);
+    await sleep(500);
+  }
+  if (qs.get('perf')) {
+    const dbg = tl._debug();
+    const raf = () => new Promise((r) => requestAnimationFrame(r));
+    S.stats = null;
+    const t0 = performance.now();
+    for (let i = 0; i < 150; i++) { S.sx += 22; dbg.invalidate(4 | 8); await raf(); }
+    const scrollStats = { ...S.stats, wall: performance.now() - t0 };
+    S.stats = null;
+    for (let i = 0; i < 40; i++) { API.state.set({ zoom: S.zoom * (i < 20 ? 1.06 : 0.94) }); await raf(); }
+    const zoomStats = { ...S.stats };
+    S.stats = null;
+    for (let i = 0; i < 60; i++) { API.state.set({ playhead: i * 0.1, playing: true }); await raf(); }
+    API.state.set({ playing: false });
+    const phStats = { ...S.stats };
+    const f = (s) => `n=${s.n} avg=${(s.total / Math.max(1, s.n)).toFixed(2)}ms max=${s.max.toFixed(2)}ms`;
+    note(`PERF clips=${S.clipEls.size} scroll: ${f(scrollStats)} (view-only avg ${(scrollStats.viewTotal / Math.max(1, scrollStats.viewN)).toFixed(2)}ms) · zoom: ${f(zoomStats)} · playhead: ${f(phStats)}`);
+  }
+  if (qs.get('menu')) {
+    const el = S.clipEls.get(qs.get('menu'));
+    const r = el.getBoundingClientRect();
+    el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 30, clientY: r.top + 10 }));
+    await sleep(200);
+  }
+  if (qs.get('picker')) {
+    const b = document.querySelector('.tl-tr.on');
+    if (b) {
+      const r = b.getBoundingClientRect();
+      b.dispatchEvent(new PointerEvent('pointerdown', { clientX: r.left + 5, clientY: r.top + 5, button: 0, bubbles: true, pointerId: 1 }));
+      window.dispatchEvent(new PointerEvent('pointerup', { clientX: r.left + 5, clientY: r.top + 5, button: 0, bubbles: true, pointerId: 1 }));
+      await sleep(600);
+    }
+  }
+} catch (e) { note('FATAL ' + (e && e.stack || e)); }
+out.textContent = log.join('\n');
+document.title = 'DONE';
+</script>
+</body>
+</html>

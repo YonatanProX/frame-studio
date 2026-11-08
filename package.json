@@ -1,0 +1,47 @@
+{
+  "name": "frame-studio",
+  "version": "1.1.0",
+  "description": "The video editor Claude can actually edit in: an offline CapCut-style editor with pro features that Claude Code drives through a CLI and HTTP API while you watch and keep editing by hand.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YonatanProX/frame-studio.git"
+  },
+  "homepage": "https://github.com/YonatanProX/frame-studio#readme",
+  "bugs": {
+    "url": "https://github.com/YonatanProX/frame-studio/issues"
+  },
+  "keywords": [
+    "video-editor",
+    "claude",
+    "claude-code",
+    "webgl2",
+    "ffmpeg",
+    "captions",
+    "rtl",
+    "hebrew",
+    "offline"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "cutx": "cli/cutx.mjs"
+  },
+  "scripts": {
+    "start": "node server/main.mjs",
+    "open": "node server/main.mjs --open",
+    "mcp": "node mcp/server.mjs",
+    "install-app": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install.ps1",
+    "uninstall-app": "powershell -NoProfile -ExecutionPolicy Bypass -File uninstall.ps1",
+    "install-transcription": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/install-transcription.ps1",
+    "check": "node tools/check-setup.mjs",
+    "test": "node tools/run-tests.mjs",
+    "release": "node tools/make-release.mjs",
+    "icon": "node tools/make-icon.mjs",
+    "luts": "node tools/make-luts.mjs",
+    "publishable": "node tools/list-publishable.mjs"
+  }
+}
